@@ -1,3 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShadowCore Arcade</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<style>
+body{
+  margin:0;
+  background:black;
+  color:white;
+  font-family:'Orbitron',sans-serif;
+  text-align:center;
+}
+h1{
+  margin:20px;
+  color:#00f7ff;
+  text-shadow:0 0 20px #00f7ff;
+}
+.menu button{
+  margin:10px;
+  padding:10px 20px;
+  background:#111;
+  color:#00f7ff;
+  border:1px solid #00f7ff;
+  cursor:pointer;
+  font-weight:bold;
+  border-radius:5px;
+}
+canvas{
+  background:#111;
+  display:none;
+  margin:20px auto;
+  border:2px solid #00f7ff;
+  box-shadow:0 0 20px #00f7ff;
+}
+.score{
+  font-size:18px;
+  margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<h1>🎮 ShadowCore Arcade Hub</h1>
+
+<div class="menu">
+  <button onclick="startGame('dodge')">Dodge</button>
+  <button onclick="startGame('shooter')">Shooter</button>
+  <button onclick="startGame('zombie')">Zombie</button>
+  <button onclick="startGame('racing')">Racing</button>
+</div>
+
+<canvas id="gameCanvas" width="400" height="500"></canvas>
+<div class="score">Score: <span id="score">0</span> | Health: <span id="health">100</span></div>
+
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -7,8 +64,10 @@ let score = 0;
 let health = 100;
 let boss = null;
 let difficulty = 1;
+let mode = '';
 let gameLoop;
 
+// Reset all variables
 function reset(){
   player={x:180,y:450,width:40,height:40,speed:5};
   enemies=[];
@@ -20,34 +79,44 @@ function reset(){
   health=100;
   difficulty=1;
   document.getElementById("score").innerText=score;
+  document.getElementById("health").innerText=health;
 }
 
-function startGame(){
+// Start a game mode
+function startGame(selected){
+  mode=selected;
   canvas.style.display="block";
   reset();
   if(gameLoop) cancelAnimationFrame(gameLoop);
   update();
 }
 
+// Keyboard controls
 document.addEventListener("keydown",e=>{
+  if(!player) return;
   if(e.key==="ArrowLeft" && player.x>0) player.x-=player.speed;
   if(e.key==="ArrowRight" && player.x<canvas.width-player.width) player.x+=player.speed;
-  if(e.key===" ") bullets.push({x:player.x+18,y:player.y,width:5,height:10});
+  if(e.key===" " && (mode==="shooter" || mode==="boss")){
+    bullets.push({x:player.x+18,y:player.y,width:5,height:10});
+  }
 });
 
+// Spawn AI enemies
 function spawnEnemy(){
   const types=["runner","tank","sniper"];
   const type=types[Math.floor(Math.random()*types.length)];
   enemies.push({
-    x:Math.random()*360,
+    x:Math.random()*(canvas.width-30),
     y:0,
-    width:30,
-    height:30,
+    width:type==="tank"?40:30,
+    height:type==="tank"?40:30,
     type:type,
-    speed:2+difficulty
+    speed:2+difficulty,
+    ai:true
   });
 }
 
+// Spawn Boss
 function spawnBoss(){
   boss={
     x:150,
@@ -59,6 +128,7 @@ function spawnBoss(){
   };
 }
 
+// Particle explosion
 function createExplosion(x,y){
   for(let i=0;i<15;i++){
     particles.push({
@@ -71,15 +141,23 @@ function createExplosion(x,y){
   }
 }
 
-function update(){
+// Collision detection
+function collide(a,b){
+  return a.x<b.x+b.width &&
+         a.x+a.width>b.x &&
+         a.y<b.y+b.height &&
+         a.y+a.height>b.y;
+}
 
+// Main update loop
+function update(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // PLAYER
+  // Draw player
   ctx.fillStyle="#00f7ff";
   ctx.fillRect(player.x,player.y,player.width,player.height);
 
-  // PLAYER BULLETS
+  // Draw bullets
   bullets.forEach((b,i)=>{
     b.y-=7;
     ctx.fillStyle="yellow";
@@ -87,85 +165,76 @@ function update(){
     if(b.y<0) bullets.splice(i,1);
   });
 
-  // ENEMIES
+  // AI enemies
   enemies.forEach((enemy,i)=>{
+    if(enemy.ai){
+      // Basic AI: chase player horizontally
+      if(player.x < enemy.x) enemy.x -= 1.2;
+      if(player.x > enemy.x) enemy.x += 1.2;
 
-    // AI behavior
-    if(enemy.type==="runner"){
-      enemy.y+=enemy.speed+1;
-    }
-    if(enemy.type==="tank"){
-      enemy.y+=enemy.speed*0.6;
-      enemy.width=40;
-      enemy.height=40;
-    }
-    if(enemy.type==="sniper"){
-      enemy.y+=enemy.speed*0.5;
-      if(Math.random()<0.01){
-        enemyBullets.push({x:enemy.x+15,y:enemy.y,width:5,height:10});
+      // Enemy type speed
+      if(enemy.type==="runner") enemy.y += enemy.speed + 1;
+      if(enemy.type==="tank") enemy.y += enemy.speed * 0.6;
+      if(enemy.type==="sniper") {
+        enemy.y += enemy.speed * 0.5;
+        if(Math.random()<0.01) enemyBullets.push({x:enemy.x+15,y:enemy.y,width:5,height:10});
       }
     }
 
-    // flank player
-    if(player.x < enemy.x) enemy.x -= 1;
-    if(player.x > enemy.x) enemy.x += 1;
-
-    ctx.fillStyle=
-      enemy.type==="runner"?"#ff00c8":
-      enemy.type==="tank"?"orange":
-      "red";
-
+    // Draw enemy
+    ctx.fillStyle= enemy.type==="runner"?"#ff00c8":
+                   enemy.type==="tank"?"orange":"red";
     ctx.fillRect(enemy.x,enemy.y,enemy.width,enemy.height);
 
-    // collision with player
+    // Player collision
     if(collide(player,enemy)){
-      health-=10;
+      health -=10;
       createExplosion(enemy.x,enemy.y);
       enemies.splice(i,1);
     }
 
-    // hit by bullet
+    // Bullet collision
     bullets.forEach((b,bi)=>{
       if(collide(b,enemy)){
         createExplosion(enemy.x,enemy.y);
         enemies.splice(i,1);
         bullets.splice(bi,1);
-        score+=5;
+        score +=5;
       }
     });
 
+    if(enemy.y>canvas.height){
+      enemies.splice(i,1);
+      score++;
+    }
   });
 
-  // ENEMY BULLETS
+  // Enemy bullets
   enemyBullets.forEach((b,i)=>{
     b.y+=5;
     ctx.fillStyle="red";
     ctx.fillRect(b.x,b.y,b.width,b.height);
     if(collide(player,b)){
-      health-=5;
+      health -=5;
       enemyBullets.splice(i,1);
     }
   });
 
-  // BOSS SPAWN
+  // Spawn boss if score high
   if(score>50 && !boss){
     spawnBoss();
   }
 
-  // BOSS LOGIC
+  // Boss logic
   if(boss){
     ctx.fillStyle="purple";
     ctx.fillRect(boss.x,boss.y,boss.width,boss.height);
-
     boss.x += Math.sin(Date.now()/500)*2;
-
-    if(Math.random()<0.05){
-      enemyBullets.push({x:boss.x+50,y:boss.y+100,width:8,height:15});
-    }
+    if(Math.random()<0.05) enemyBullets.push({x:boss.x+50,y:boss.y+100,width:8,height:15});
 
     bullets.forEach((b,bi)=>{
       if(collide(b,boss)){
-        boss.health-=5;
+        boss.health -=5;
         bullets.splice(bi,1);
         createExplosion(boss.x+50,boss.y+50);
       }
@@ -178,7 +247,7 @@ function update(){
     }
   }
 
-  // PARTICLES
+  // Draw particles
   particles.forEach((p,i)=>{
     p.x+=p.dx;
     p.y+=p.dy;
@@ -188,27 +257,24 @@ function update(){
     if(p.life<=0) particles.splice(i,1);
   });
 
-  // UI
-  ctx.fillStyle="white";
-  ctx.fillText("Health: "+health,10,20);
+  // Update UI
   document.getElementById("score").innerText=score;
+  document.getElementById("health").innerText=health;
 
-  difficulty+=0.002;
+  // Difficulty increases over time
+  difficulty += 0.002;
 
+  // Check game over
   if(health<=0){
-    alert("YOU WERE DESTROYED ☠️ Score: "+score);
+    alert("GAME OVER! Score: "+score);
     document.location.reload();
   }
 
   gameLoop=requestAnimationFrame(update);
 }
 
-function collide(a,b){
-  return a.x<b.x+b.width &&
-         a.x+a.width>b.x &&
-         a.y<b.y+b.height &&
-         a.y+a.height>b.y;
-}
-
+// Spawn enemies repeatedly
 setInterval(spawnEnemy,800);
 </script>
+</body>
+</html>
