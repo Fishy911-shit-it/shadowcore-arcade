@@ -45,41 +45,31 @@ Highscore: <span id="high">0</span>
 
 <script>
 
-const canvas =
-document.getElementById("game");
-
-const c =
-canvas.getContext("2d");
+const canvas = document.getElementById("game");
+const c = canvas.getContext("2d");
 
 let score=0;
-
 let level=1;
 
-let highscore=
-localStorage.highscore||0;
-
-document.getElementById("high")
-textContent=highscore;
+let highscore=localStorage.highscore||0;
+document.getElementById("high").textContent=highscore;
 
 let player={
-
 x:450,
 y:500,
 size:25,
 speed:5,
 health:100
-
 };
 
 let bullets=[];
-
 let enemies=[];
-
 let particles=[];
-
 let healthpacks=[];
 
 let keys={};
+
+let lastShot=0;
 
 document.addEventListener(
 "keydown",
@@ -93,9 +83,16 @@ e=>keys[e.key]=false
 
 function shoot(speed){
 
+let now=Date.now();
+
+if(now-lastShot<150)
+return;
+
+lastShot=now;
+
 bullets.push({
 
-x:player.x,
+x:player.x+10,
 y:player.y,
 dy:-speed,
 size:6
@@ -108,14 +105,10 @@ function spawnEnemy(){
 
 enemies.push({
 
-x:Math.random()*900,
-
+x:Math.random()*880,
 y:-20,
-
 speed:1+level*0.5,
-
 size:20,
-
 health:2
 
 });
@@ -128,7 +121,7 @@ function spawnHealth(){
 
 healthpacks.push({
 
-x:Math.random()*900,
+x:Math.random()*880,
 y:-20,
 size:15
 
@@ -140,17 +133,14 @@ setInterval(spawnHealth,8000);
 
 function explosion(x,y){
 
-for(let i=0;i<10;i++){
+for(let i=0;i<12;i++){
 
 particles.push({
 
 x:x,
 y:y,
-
 dx:Math.random()*6-3,
-
 dy:Math.random()*6-3,
-
 life:30
 
 });
@@ -173,23 +163,44 @@ player.y-=player.speed;
 if(keys["s"])
 player.y+=player.speed;
 
+
+/* Boundaries */
+
+player.x=Math.max(0,
+Math.min(875,player.x));
+
+player.y=Math.max(0,
+Math.min(575,player.y));
+
+
+/* Shooting */
+
 if(keys[" "])
 shoot(8);
 
 if(keys["Shift"])
 shoot(12);
 
-bullets.forEach(b=>{
+
+/* Bullets */
+
+bullets.forEach((b,i)=>{
 
 b.y+=b.dy;
 
+if(b.y<0)
+bullets.splice(i,1);
+
 });
+
+
+/* Enemies */
 
 enemies.forEach((e,ei)=>{
 
 let dx=player.x-e.x;
 
-e.x+=dx*0.01;
+e.x+=dx*0.02;
 
 e.y+=e.speed;
 
@@ -202,6 +213,9 @@ enemies.splice(ei,1);
 }
 
 });
+
+
+/* Collisions */
 
 bullets.forEach((b,bi)=>{
 
@@ -235,6 +249,9 @@ enemies.splice(ei,1);
 
 });
 
+
+/* Healthpacks */
+
 healthpacks.forEach((h,hi)=>{
 
 h.y+=2;
@@ -247,13 +264,18 @@ let d=Math.sqrt(dx*dx+dy*dy);
 
 if(d<25){
 
-player.health+=20;
+player.health=
+Math.min(100,
+player.health+20);
 
 healthpacks.splice(hi,1);
 
 }
 
 });
+
+
+/* Particles */
 
 particles.forEach((p,pi)=>{
 
@@ -268,11 +290,14 @@ particles.splice(pi,1);
 
 });
 
-if(score>level*200){
 
+/* Level */
+
+if(score>level*200)
 level++;
 
-}
+
+/* UI */
 
 document.getElementById("score")
 textContent=score;
@@ -282,6 +307,9 @@ textContent=level;
 
 document.getElementById("health")
 textContent=player.health;
+
+
+/* Highscore */
 
 if(score>highscore){
 
@@ -294,6 +322,9 @@ textContent=score;
 
 }
 
+
+/* Game Over */
+
 if(player.health<=0){
 
 alert("Game Over");
@@ -304,9 +335,13 @@ location.reload();
 
 }
 
+
 function draw(){
 
 c.clearRect(0,0,900,600);
+
+
+/* Player */
 
 c.fillStyle="cyan";
 
@@ -316,6 +351,9 @@ player.y,
 player.size,
 player.size
 );
+
+
+/* Bullets */
 
 c.fillStyle="yellow";
 
@@ -330,6 +368,9 @@ b.size
 
 });
 
+
+/* Enemies */
+
 c.fillStyle="red";
 
 enemies.forEach(e=>{
@@ -343,6 +384,9 @@ e.size
 
 });
 
+
+/* Healthpacks */
+
 c.fillStyle="green";
 
 healthpacks.forEach(h=>{
@@ -355,6 +399,9 @@ h.size
 );
 
 });
+
+
+/* Particles */
 
 c.fillStyle="orange";
 
@@ -371,10 +418,10 @@ p.y,
 
 }
 
+
 function loop(){
 
 update();
-
 draw();
 
 requestAnimationFrame(loop);
