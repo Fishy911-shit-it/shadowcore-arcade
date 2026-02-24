@@ -1,280 +1,389 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShadowCore Arcade</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+
+<title>Advanced Shooter</title>
+
 <style>
+
 body{
-  margin:0;
-  background:black;
-  color:white;
-  font-family:'Orbitron',sans-serif;
-  text-align:center;
+margin:0;
+background:black;
+color:white;
+font-family:Arial;
+text-align:center;
 }
-h1{
-  margin:20px;
-  color:#00f7ff;
-  text-shadow:0 0 20px #00f7ff;
-}
-.menu button{
-  margin:10px;
-  padding:10px 20px;
-  background:#111;
-  color:#00f7ff;
-  border:1px solid #00f7ff;
-  cursor:pointer;
-  font-weight:bold;
-  border-radius:5px;
-}
+
 canvas{
-  background:#111;
-  display:none;
-  margin:20px auto;
-  border:2px solid #00f7ff;
-  box-shadow:0 0 20px #00f7ff;
+background:#111;
+display:block;
+margin:auto;
 }
-.score{
-  font-size:18px;
-  margin-top:10px;
-}
+
 </style>
+
 </head>
+
 <body>
 
-<h1>🎮 ShadowCore Arcade Hub</h1>
+<h2>Advanced Shooter</h2>
 
-<div class="menu">
-  <button onclick="startGame('dodge')">Dodge</button>
-  <button onclick="startGame('shooter')">Shooter</button>
-  <button onclick="startGame('zombie')">Zombie</button>
-  <button onclick="startGame('racing')">Racing</button>
-</div>
+<p>
+WASD Move |
+Space Shoot |
+Shift Rapid Fire
+</p>
 
-<canvas id="gameCanvas" width="400" height="500"></canvas>
-<div class="score">Score: <span id="score">0</span> | Health: <span id="health">100</span></div>
+<p>
+Score: <span id="score">0</span>
+Level: <span id="level">1</span>
+Health: <span id="health">100</span>
+Highscore: <span id="high">0</span>
+</p>
+
+<canvas id="game" width="900" height="600"></canvas>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
 
-let player, enemies, bullets, enemyBullets, particles;
-let score = 0;
-let health = 100;
-let boss = null;
-let difficulty = 1;
-let mode = '';
-let gameLoop;
+const canvas =
+document.getElementById("game");
 
-// Reset all variables
-function reset(){
-  player={x:180,y:450,width:40,height:40,speed:5};
-  enemies=[];
-  bullets=[];
-  enemyBullets=[];
-  particles=[];
-  boss=null;
-  score=0;
-  health=100;
-  difficulty=1;
-  document.getElementById("score").innerText=score;
-  document.getElementById("health").innerText=health;
-}
+const c =
+canvas.getContext("2d");
 
-// Start a game mode
-function startGame(selected){
-  mode=selected;
-  canvas.style.display="block";
-  reset();
-  if(gameLoop) cancelAnimationFrame(gameLoop);
-  update();
-}
+let score=0;
 
-// Keyboard controls
-document.addEventListener("keydown",e=>{
-  if(!player) return;
-  if(e.key==="ArrowLeft" && player.x>0) player.x-=player.speed;
-  if(e.key==="ArrowRight" && player.x<canvas.width-player.width) player.x+=player.speed;
-  if(e.key===" " && (mode==="shooter" || mode==="boss")){
-    bullets.push({x:player.x+18,y:player.y,width:5,height:10});
-  }
+let level=1;
+
+let highscore=
+localStorage.highscore||0;
+
+document.getElementById("high")
+textContent=highscore;
+
+let player={
+
+x:450,
+y:500,
+size:25,
+speed:5,
+health:100
+
+};
+
+let bullets=[];
+
+let enemies=[];
+
+let particles=[];
+
+let healthpacks=[];
+
+let keys={};
+
+document.addEventListener(
+"keydown",
+e=>keys[e.key]=true
+);
+
+document.addEventListener(
+"keyup",
+e=>keys[e.key]=false
+);
+
+function shoot(speed){
+
+bullets.push({
+
+x:player.x,
+y:player.y,
+dy:-speed,
+size:6
+
 });
 
-// Spawn AI enemies
+}
+
 function spawnEnemy(){
-  const types=["runner","tank","sniper"];
-  const type=types[Math.floor(Math.random()*types.length)];
-  enemies.push({
-    x:Math.random()*(canvas.width-30),
-    y:0,
-    width:type==="tank"?40:30,
-    height:type==="tank"?40:30,
-    type:type,
-    speed:2+difficulty,
-    ai:true
-  });
+
+enemies.push({
+
+x:Math.random()*900,
+
+y:-20,
+
+speed:1+level*0.5,
+
+size:20,
+
+health:2
+
+});
+
 }
 
-// Spawn Boss
-function spawnBoss(){
-  boss={
-    x:150,
-    y:50,
-    width:100,
-    height:100,
-    health:200,
-    phase:1
-  };
+setInterval(spawnEnemy,1500);
+
+function spawnHealth(){
+
+healthpacks.push({
+
+x:Math.random()*900,
+y:-20,
+size:15
+
+});
+
 }
 
-// Particle explosion
-function createExplosion(x,y){
-  for(let i=0;i<15;i++){
-    particles.push({
-      x:x,
-      y:y,
-      dx:(Math.random()-0.5)*5,
-      dy:(Math.random()-0.5)*5,
-      life:30
-    });
-  }
+setInterval(spawnHealth,8000);
+
+function explosion(x,y){
+
+for(let i=0;i<10;i++){
+
+particles.push({
+
+x:x,
+y:y,
+
+dx:Math.random()*6-3,
+
+dy:Math.random()*6-3,
+
+life:30
+
+});
+
 }
 
-// Collision detection
-function collide(a,b){
-  return a.x<b.x+b.width &&
-         a.x+a.width>b.x &&
-         a.y<b.y+b.height &&
-         a.y+a.height>b.y;
 }
 
-// Main update loop
 function update(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Draw player
-  ctx.fillStyle="#00f7ff";
-  ctx.fillRect(player.x,player.y,player.width,player.height);
+if(keys["a"])
+player.x-=player.speed;
 
-  // Draw bullets
-  bullets.forEach((b,i)=>{
-    b.y-=7;
-    ctx.fillStyle="yellow";
-    ctx.fillRect(b.x,b.y,b.width,b.height);
-    if(b.y<0) bullets.splice(i,1);
-  });
+if(keys["d"])
+player.x+=player.speed;
 
-  // AI enemies
-  enemies.forEach((enemy,i)=>{
-    if(enemy.ai){
-      // Basic AI: chase player horizontally
-      if(player.x < enemy.x) enemy.x -= 1.2;
-      if(player.x > enemy.x) enemy.x += 1.2;
+if(keys["w"])
+player.y-=player.speed;
 
-      // Enemy type speed
-      if(enemy.type==="runner") enemy.y += enemy.speed + 1;
-      if(enemy.type==="tank") enemy.y += enemy.speed * 0.6;
-      if(enemy.type==="sniper") {
-        enemy.y += enemy.speed * 0.5;
-        if(Math.random()<0.01) enemyBullets.push({x:enemy.x+15,y:enemy.y,width:5,height:10});
-      }
-    }
+if(keys["s"])
+player.y+=player.speed;
 
-    // Draw enemy
-    ctx.fillStyle= enemy.type==="runner"?"#ff00c8":
-                   enemy.type==="tank"?"orange":"red";
-    ctx.fillRect(enemy.x,enemy.y,enemy.width,enemy.height);
+if(keys[" "])
+shoot(8);
 
-    // Player collision
-    if(collide(player,enemy)){
-      health -=10;
-      createExplosion(enemy.x,enemy.y);
-      enemies.splice(i,1);
-    }
+if(keys["Shift"])
+shoot(12);
 
-    // Bullet collision
-    bullets.forEach((b,bi)=>{
-      if(collide(b,enemy)){
-        createExplosion(enemy.x,enemy.y);
-        enemies.splice(i,1);
-        bullets.splice(bi,1);
-        score +=5;
-      }
-    });
+bullets.forEach(b=>{
 
-    if(enemy.y>canvas.height){
-      enemies.splice(i,1);
-      score++;
-    }
-  });
+b.y+=b.dy;
 
-  // Enemy bullets
-  enemyBullets.forEach((b,i)=>{
-    b.y+=5;
-    ctx.fillStyle="red";
-    ctx.fillRect(b.x,b.y,b.width,b.height);
-    if(collide(player,b)){
-      health -=5;
-      enemyBullets.splice(i,1);
-    }
-  });
+});
 
-  // Spawn boss if score high
-  if(score>50 && !boss){
-    spawnBoss();
-  }
+enemies.forEach((e,ei)=>{
 
-  // Boss logic
-  if(boss){
-    ctx.fillStyle="purple";
-    ctx.fillRect(boss.x,boss.y,boss.width,boss.height);
-    boss.x += Math.sin(Date.now()/500)*2;
-    if(Math.random()<0.05) enemyBullets.push({x:boss.x+50,y:boss.y+100,width:8,height:15});
+let dx=player.x-e.x;
 
-    bullets.forEach((b,bi)=>{
-      if(collide(b,boss)){
-        boss.health -=5;
-        bullets.splice(bi,1);
-        createExplosion(boss.x+50,boss.y+50);
-      }
-    });
+e.x+=dx*0.01;
 
-    if(boss.health<=0){
-      createExplosion(boss.x,boss.y);
-      boss=null;
-      score+=100;
-    }
-  }
+e.y+=e.speed;
 
-  // Draw particles
-  particles.forEach((p,i)=>{
-    p.x+=p.dx;
-    p.y+=p.dy;
-    p.life--;
-    ctx.fillStyle="white";
-    ctx.fillRect(p.x,p.y,2,2);
-    if(p.life<=0) particles.splice(i,1);
-  });
+if(e.y>600){
 
-  // Update UI
-  document.getElementById("score").innerText=score;
-  document.getElementById("health").innerText=health;
+player.health-=10;
 
-  // Difficulty increases over time
-  difficulty += 0.002;
+enemies.splice(ei,1);
 
-  // Check game over
-  if(health<=0){
-    alert("GAME OVER! Score: "+score);
-    document.location.reload();
-  }
-
-  gameLoop=requestAnimationFrame(update);
 }
 
-// Spawn enemies repeatedly
-setInterval(spawnEnemy,800);
+});
+
+bullets.forEach((b,bi)=>{
+
+enemies.forEach((e,ei)=>{
+
+let dx=b.x-e.x;
+
+let dy=b.y-e.y;
+
+let d=Math.sqrt(dx*dx+dy*dy);
+
+if(d<20){
+
+e.health--;
+
+bullets.splice(bi,1);
+
+if(e.health<=0){
+
+explosion(e.x,e.y);
+
+score+=10;
+
+enemies.splice(ei,1);
+
+}
+
+}
+
+});
+
+});
+
+healthpacks.forEach((h,hi)=>{
+
+h.y+=2;
+
+let dx=player.x-h.x;
+
+let dy=player.y-h.y;
+
+let d=Math.sqrt(dx*dx+dy*dy);
+
+if(d<25){
+
+player.health+=20;
+
+healthpacks.splice(hi,1);
+
+}
+
+});
+
+particles.forEach((p,pi)=>{
+
+p.x+=p.dx;
+
+p.y+=p.dy;
+
+p.life--;
+
+if(p.life<=0)
+particles.splice(pi,1);
+
+});
+
+if(score>level*200){
+
+level++;
+
+}
+
+document.getElementById("score")
+textContent=score;
+
+document.getElementById("level")
+textContent=level;
+
+document.getElementById("health")
+textContent=player.health;
+
+if(score>highscore){
+
+highscore=score;
+
+localStorage.highscore=score;
+
+document.getElementById("high")
+textContent=score;
+
+}
+
+if(player.health<=0){
+
+alert("Game Over");
+
+location.reload();
+
+}
+
+}
+
+function draw(){
+
+c.clearRect(0,0,900,600);
+
+c.fillStyle="cyan";
+
+c.fillRect(
+player.x,
+player.y,
+player.size,
+player.size
+);
+
+c.fillStyle="yellow";
+
+bullets.forEach(b=>{
+
+c.fillRect(
+b.x,
+b.y,
+b.size,
+b.size
+);
+
+});
+
+c.fillStyle="red";
+
+enemies.forEach(e=>{
+
+c.fillRect(
+e.x,
+e.y,
+e.size,
+e.size
+);
+
+});
+
+c.fillStyle="green";
+
+healthpacks.forEach(h=>{
+
+c.fillRect(
+h.x,
+h.y,
+h.size,
+h.size
+);
+
+});
+
+c.fillStyle="orange";
+
+particles.forEach(p=>{
+
+c.fillRect(
+p.x,
+p.y,
+3,
+3
+);
+
+});
+
+}
+
+function loop(){
+
+update();
+
+draw();
+
+requestAnimationFrame(loop);
+
+}
+
+loop();
+
 </script>
+
 </body>
 </html>
