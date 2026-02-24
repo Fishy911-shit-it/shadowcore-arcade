@@ -1,30 +1,29 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
-<title>Pro Shooter</title>
+<title>Ultimate Tower Defense</title>
 
 <style>
 
 body{
 margin:0;
-background:black;
+background:#1b1b1b;
 color:white;
 font-family:Arial;
 text-align:center;
 }
 
 canvas{
-background:#111;
+background:#2b2b2b;
 display:block;
 margin:auto;
-cursor:crosshair;
 }
 
 button{
-padding:10px;
-font-size:16px;
 margin:5px;
+padding:10px;
 }
 
 </style>
@@ -33,334 +32,207 @@ margin:5px;
 
 <body>
 
-<h2>PRO SHOOTER</h2>
+<h2>Ultimate Tower Defense</h2>
 
-<div id="menu">
+<div>
 
-<button onclick="startGame()">
-Start Game
+Money:
+<span id="money">300</span>
+
+Health:
+<span id="health">30</span>
+
+Wave:
+<span id="wave">1</span>
+
+</div>
+
+<div>
+
+<button onclick="selectTower('gun')">
+Gun $50
 </button>
 
-<button onclick="upgrade()">
-Upgrade Gun (100)
+<button onclick="selectTower('slow')">
+Slow $70
+</button>
+
+<button onclick="selectTower('bomb')">
+Bomb $100
 </button>
 
 </div>
 
-<p>
-
-Score:
-<span id="score">0</span>
-
-Health:
-<span id="health">100</span>
-
-Level:
-<span id="level">1</span>
-
-High:
-<span id="high">0</span>
-
-</p>
-
 <canvas
 id="game"
 width="900"
-height="600">
+height="500">
 </canvas>
 
 <script>
 
-const canvas =
+const canvas=
 document.getElementById("game");
 
-const c =
+const c=
 canvas.getContext("2d");
 
-let gameRunning=false;
 
-let score=0;
+let money=300;
+let health=30;
+let wave=1;
 
-let level=1;
-
-let gunLevel=1;
-
-let high=
-localStorage.high||0;
-
-document.getElementById("high")
-textContent=high;
-
-let player={
-
-x:450,
-y:300,
-size:20,
-speed:4,
-health:100
-
-};
-
-let mouse={x:0,y:0};
-
+let towers=[];
+let enemies=[];
 let bullets=[];
 
-let enemies=[];
+let selected="gun";
 
-let boss=null;
+let spawning=true;
 
-let keys={};
 
-canvas.addEventListener(
-"mousemove",
-e=>{
+
+let path=[
+
+{x:0,y:250},
+{x:200,y:250},
+{x:200,y:100},
+{x:500,y:100},
+{x:500,y:350},
+{x:900,y:350}
+
+];
+
+
+
+function selectTower(t){
+
+selected=t;
+
+}
+
+
+
+canvas.onclick=function(e){
 
 let rect=
 canvas.getBoundingClientRect();
 
-mouse.x=
+let x=
 e.clientX-rect.left;
 
-mouse.y=
+let y=
 e.clientY-rect.top;
 
-}
-);
+let cost={
 
-document.addEventListener(
-"keydown",
-e=>keys[e.key]=true
-);
+gun:50,
+slow:70,
+bomb:100
 
-document.addEventListener(
-"keyup",
-e=>keys[e.key]=false
-);
+};
 
-canvas.addEventListener(
-"click",
-shoot
-);
+if(money>=cost[selected]){
 
+towers.push({
 
-function startGame(){
-
-gameRunning=true;
-
-document.getElementById("menu")
-style.display="none";
-
-}
-
-
-function upgrade(){
-
-if(score>=100){
-
-score-=100;
-
-gunLevel++;
-
-}
-
-}
-
-
-function shoot(){
-
-if(!gameRunning)
-return;
-
-let dx=
-mouse.x-player.x;
-
-let dy=
-mouse.y-player.y;
-
-let d=
-Math.sqrt(dx*dx+dy*dy);
-
-bullets.push({
-
-x:player.x,
-y:player.y,
-
-dx:dx/d*8,
-
-dy:dy/d*8,
-
-size:5
+x:x,
+y:y,
+type:selected,
+cooldown:0
 
 });
 
+money-=cost[selected];
+
 }
+
+};
+
 
 
 function spawnEnemy(){
 
-if(!gameRunning)
-return;
+if(!spawning) return;
+
+let types=[
+
+"normal",
+"fast",
+"tank"
+
+];
+
+let type=
+types[Math.floor(Math.random()*3)];
+
+let stats={
+
+normal:{hp:10,speed:1},
+
+fast:{hp:6,speed:2},
+
+tank:{hp:25,speed:0.6}
+
+};
+
+let s=stats[type];
 
 enemies.push({
 
-x:Math.random()*900,
-y:Math.random()*600,
-
-speed:1+level*0.3,
-health:2
+x:path[0].x,
+y:path[0].y,
+hp:s.hp+wave*2,
+speed:s.speed,
+type:type,
+step:0
 
 });
 
 }
 
-setInterval(spawnEnemy,2000);
 
 
-function spawnBoss(){
+setInterval(spawnEnemy,1500);
 
-boss={
-
-x:450,
-y:100,
-
-health:50+level*20,
-
-size:60
-
-};
-
-}
 
 
 function update(){
 
-if(!gameRunning)
-return;
 
+/* MOVE ENEMIES */
 
-/* Movement */
+for(let ei=enemies.length-1;ei>=0;ei--){
 
-if(keys["w"])
-player.y-=player.speed;
+let e=enemies[ei];
 
-if(keys["s"])
-player.y+=player.speed;
+let target=
+path[e.step+1];
 
-if(keys["a"])
-player.x-=player.speed;
-
-if(keys["d"])
-player.x+=player.speed;
-
-
-/* Bullets */
-
-bullets.forEach((b,i)=>{
-
-b.x+=b.dx;
-b.y+=b.dy;
-
-if(b.x<0||
-b.x>900||
-b.y<0||
-b.y>600)
-
-bullets.splice(i,1);
-
-});
-
-
-/* Enemies */
-
-enemies.forEach((e,ei)=>{
+if(!target) continue;
 
 let dx=
-player.x-e.x;
+target.x-e.x;
 
 let dy=
-player.y-e.y;
+target.y-e.y;
 
 let d=
 Math.sqrt(dx*dx+dy*dy);
+
+if(d===0) continue;
 
 e.x+=dx/d*e.speed;
 
 e.y+=dy/d*e.speed;
 
-if(d<20)
-player.health-=0.3;
+if(d<5){
 
-});
+e.step++;
 
+if(e.step>=path.length-1){
 
-/* Boss */
-
-if(score>200 &&
-!boss)
-
-spawnBoss();
-
-
-if(boss){
-
-let dx=
-player.x-boss.x;
-
-boss.x+=dx*0.01;
-
-bullets.forEach((b,bi)=>{
-
-let dx=b.x-boss.x;
-let dy=b.y-boss.y;
-
-let d=
-Math.sqrt(dx*dx+dy*dy);
-
-if(d<50){
-
-boss.health--;
-
-bullets.splice(bi,1);
-
-if(boss.health<=0){
-
-score+=200;
-
-boss=null;
-
-level++;
-
-}
-
-}
-
-});
-
-}
-
-
-/* Bullet hits */
-
-bullets.forEach((b,bi)=>{
-
-enemies.forEach((e,ei)=>{
-
-let dx=b.x-e.x;
-
-let dy=b.y-e.y;
-
-let d=
-Math.sqrt(dx*dx+dy*dy);
-
-if(d<20){
-
-e.health--;
-
-bullets.splice(bi,1);
-
-if(e.health<=0){
-
-score+=10;
+health--;
 
 enemies.splice(ei,1);
 
@@ -368,39 +240,196 @@ enemies.splice(ei,1);
 
 }
 
-});
+}
+
+
+
+/* TOWERS */
+
+towers.forEach(t=>{
+
+t.cooldown--;
+
+if(t.cooldown>0)
+return;
+
+
+
+let target=null;
+
+let bestDist=200;
+
+enemies.forEach(e=>{
+
+let dx=e.x-t.x;
+let dy=e.y-t.y;
+
+let d=Math.sqrt(dx*dx+dy*dy);
+
+if(d<bestDist){
+
+bestDist=d;
+target=e;
+
+}
 
 });
 
 
-/* UI */
 
-document.getElementById("score")
-textContent=score;
-
-document.getElementById("health")
-textContent=Math.floor(
-player.health);
-
-document.getElementById("level")
-textContent=level;
+if(!target)
+return;
 
 
-/* Highscore */
 
-if(score>high){
+let dx=
+target.x-t.x;
 
-high=score;
+let dy=
+target.y-t.y;
 
-localStorage.high=score;
+let d=
+Math.sqrt(dx*dx+dy*dy);
 
-document.getElementById("high")
-textContent=score;
+if(d===0)
+return;
+
+
+
+let damage={
+
+gun:2,
+slow:1,
+bomb:4
+
+};
+
+
+
+bullets.push({
+
+x:t.x,
+y:t.y,
+
+dx:dx/d*5,
+dy:dy/d*5,
+
+type:t.type,
+
+damage:damage[t.type]
+
+});
+
+
+t.cooldown=40;
+
+});
+
+
+
+/* BULLETS */
+
+for(let bi=bullets.length-1;bi>=0;bi--){
+
+let b=bullets[bi];
+
+b.x+=b.dx;
+
+b.y+=b.dy;
+
+
+for(let ei=enemies.length-1;ei>=0;ei--){
+
+let e=enemies[ei];
+
+let dx=b.x-e.x;
+
+let dy=b.y-e.y;
+
+let d=Math.sqrt(dx*dx+dy*dy);
+
+if(d<15){
+
+if(b.type=="bomb"){
+
+enemies.forEach(e2=>{
+
+let dx=e2.x-b.x;
+let dy=e2.y-b.y;
+
+let dist=Math.sqrt(dx*dx+dy*dy);
+
+if(dist<60)
+e2.hp-=b.damage;
+
+});
+
+}
+
+else{
+
+e.hp-=b.damage;
 
 }
 
 
-if(player.health<=0){
+
+if(b.type=="slow"){
+
+e.speed*=0.8;
+
+}
+
+
+
+bullets.splice(bi,1);
+
+
+
+if(e.hp<=0){
+
+money+=10;
+
+enemies.splice(ei,1);
+
+}
+
+
+
+break;
+
+}
+
+}
+
+}
+
+
+
+/* WAVE SYSTEM */
+
+if(enemies.length===0){
+
+wave++;
+
+}
+
+
+
+/* UPDATE UI */
+
+document.getElementById("money")
+textContent=money;
+
+document.getElementById("health")
+textContent=health;
+
+document.getElementById("wave")
+textContent=wave;
+
+
+
+if(health<=0){
 
 alert("Game Over");
 
@@ -408,71 +437,108 @@ location.reload();
 
 }
 
+
 }
+
 
 
 function draw(){
 
-c.clearRect(0,0,900,600);
+c.clearRect(0,0,900,500);
 
 
-/* Player */
 
+/* PATH */
+
+c.strokeStyle="brown";
+
+c.lineWidth=30;
+
+c.beginPath();
+
+c.moveTo(path[0].x,
+path[0].y);
+
+path.forEach(p=>
+c.lineTo(p.x,p.y));
+
+c.stroke();
+
+
+
+/* TOWERS */
+
+towers.forEach(t=>{
+
+if(t.type=="gun")
 c.fillStyle="cyan";
 
-c.fillRect(
-player.x,
-player.y,
-player.size,
-player.size);
+if(t.type=="slow")
+c.fillStyle="blue";
+
+if(t.type=="bomb")
+c.fillStyle="orange";
+
+c.beginPath();
+
+c.arc(
+t.x,
+t.y,
+10,
+0,
+6.28);
+
+c.fill();
+
+});
 
 
-/* Bullets */
 
+/* ENEMIES */
+
+enemies.forEach(e=>{
+
+if(e.type=="fast")
 c.fillStyle="yellow";
+
+else if(e.type=="tank")
+c.fillStyle="purple";
+
+else
+c.fillStyle="red";
+
+c.beginPath();
+
+c.arc(
+e.x,
+e.y,
+10,
+0,
+6.28);
+
+c.fill();
+
+});
+
+
+
+/* BULLETS */
+
+c.fillStyle="white";
 
 bullets.forEach(b=>{
 
 c.fillRect(
 b.x,
 b.y,
-b.size,
-b.size);
+4,
+4);
 
 });
 
 
-/* Enemies */
-
-c.fillStyle="red";
-
-enemies.forEach(e=>{
-
-c.fillRect(
-e.x,
-e.y,
-20,
-20);
-
-});
-
-
-/* Boss */
-
-if(boss){
-
-c.fillStyle="purple";
-
-c.fillRect(
-boss.x,
-boss.y,
-boss.size,
-boss.size);
-
 }
 
-
-}
 
 
 function loop(){
@@ -485,9 +551,12 @@ requestAnimationFrame(loop);
 
 }
 
+
+
 loop();
 
 </script>
 
 </body>
+
 </html>
