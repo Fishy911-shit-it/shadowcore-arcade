@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  background: #87ceeb;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  margin: auto;
+  border: 3px solid black;
+}
+
+#info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  background: rgba(255,255,255,0.6);
+  padding: 5px 10px;
+  border-radius: 5px;
+}
